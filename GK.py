@@ -9,8 +9,6 @@ audio_samples, sample_rate = sf.read(audio_file_path)
 frame_size = int(0.020 * sample_rate)
 hop_size = int(0.010 * sample_rate)
 
-time = np.arange(len(audio_samples)) / sample_rate  # move time definition here
-
 ste = []
 zcr = []
 for i in range(0, len(audio_samples) - frame_size, hop_size):
