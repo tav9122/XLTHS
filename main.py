@@ -4,17 +4,20 @@ import matplotlib.pyplot as plt
 from scipy.signal import medfilt
 
 
+# Đọc file audio,trả về số mẫu và tần số lấy mẫu.
 def read_audio(audio_file_path):
     audio_samples, sample_rate = sf.read(audio_file_path)
     return audio_samples, sample_rate
 
 
+# Tính và trả  kích thước của frame và kích thước của bước nhảy dựa trên thời gian của frame và bước nhảy.
 def calculate_frame_and_hop_sizes(sample_rate, frame_time, hop_time):
     frame_size = int(frame_time * sample_rate)
     hop_size = int(hop_time * sample_rate)
     return frame_size, hop_size
 
 
+# Tính toán STE và ZCR, chuẩn hoá về giá trị từ 0 đến 1. Trả về 2 list gồm giá trị STE và ZCR của các frame.
 def calculate_ste_and_zcr(audio_samples, frame_size, hop_size):
     ste = []
     zcr = []
@@ -27,17 +30,19 @@ def calculate_ste_and_zcr(audio_samples, frame_size, hop_size):
     return ste, zcr
 
 
+# Phân đoạn âm thanh dựa trên giá trị của STE và ZCR.
 def segment_audio(ste, zcr, ste_threshold, zcr_threshold):
     segments = dict()
     current_segment_start = None
     for i in range(len(ste)):
-        if ste[i] > ste_threshold and zcr[i] < zcr_threshold:
+        if ste[i] > ste_threshold and zcr[i] < zcr_threshold: # Nếu thoả mãn điều kiện thì tính là voiced
             segments[i] = "green"
             current_segment_start = None
-        elif ste[i] <= ste_threshold:
+        elif ste[i] <= ste_threshold: # Nếu không thoả mãn điều kiện vì STE quá bé thì tính là unvoiced
             segments[i] = "red"
             if current_segment_start is None:
                 current_segment_start = i
+            # Tuy nhiên, nếu khoảng unvoiced có độ dài lớn hơn 23 frame, tức là 300ms, thì tính là silence
             if (i - current_segment_start) >= 23\
                     and (i == len(ste) - 1 or (ste[i + 1] > ste_threshold)):
                 for j in range(current_segment_start, i + 1):
@@ -49,6 +54,7 @@ def segment_audio(ste, zcr, ste_threshold, zcr_threshold):
     return segments
 
 
+# Lọc nhiễu cho các đoạn âm thanh.
 def filter_data(segments, kernel_size):
     color_to_value = {"red": 1, "green": 0, "blue": 2}
     data_as_numbers = list(map(lambda x: color_to_value[x], segments.values()))
@@ -59,6 +65,7 @@ def filter_data(segments, kernel_size):
     return segments
 
 
+# Vẽ đồ thị  STE, ZCR và dãy âm thanh đã phân đoạn.
 def plot_results(audio_samples, sample_rate, ste, zcr, segments):
     time = np.arange(len(ste)) * hop_size / sample_rate
     fig, axs = plt.subplots(2, 1, figsize=(25, 15))
@@ -72,28 +79,19 @@ def plot_results(audio_samples, sample_rate, ste, zcr, segments):
     axs[0].set_yticks(np.arange(0, 1.1, 0.1))
 
     for frame_idx, color in segments.items():
-        if color == "blue":
-            axs[0].axvspan(frame_idx * hop_size / sample_rate,
-                           (frame_idx + 1) * hop_size / sample_rate,
-                           alpha=0.2, color=color)
-        else:
-            axs[0].axvspan(frame_idx * hop_size / sample_rate,
-                           (frame_idx + 1) * hop_size / sample_rate,
-                           alpha=0.2, color=color)
+        axs[0].axvspan(frame_idx * hop_size / sample_rate,
+                       (frame_idx + 1) * hop_size / sample_rate,
+                       alpha=0.2, color=color)
 
     axs[0].legend()
 
     time = np.arange(len(audio_samples)) / sample_rate
+
     axs[1].plot(time, audio_samples, color='black')
     for frame_idx, color in segments.items():
-        if color == "blue":
-            axs[1].axvspan(frame_idx * hop_size / sample_rate,
-                           (frame_idx + 1) * hop_size / sample_rate,
-                           alpha=0.2, color=color)
-        else:
-            axs[1].axvspan(frame_idx * hop_size / sample_rate,
-                           (frame_idx + 1) * hop_size / sample_rate,
-                           alpha=0.2, color=color)
+        axs[1].axvspan(frame_idx * hop_size / sample_rate,
+                       (frame_idx + 1) * hop_size / sample_rate,
+                       alpha=0.2, color=color)
 
     axs[1].set_xlabel('Time (s)')
     axs[1].set_ylabel('Amplitude')
