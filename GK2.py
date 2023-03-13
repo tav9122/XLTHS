@@ -66,8 +66,8 @@ def plot_results(audio_samples, sample_rate, ste, zcr, segments):
     audio_file_name = audio_file_path.split('/')[-1]
     fig.suptitle(audio_file_name, fontsize=16)
 
-    axs[0].plot(time, ste, label='STE', color='yellow')
-    axs[0].plot(time, zcr, label='ZCR', color='purple')
+    axs[0].plot(time, ste, label='STE', color='blue')
+    axs[0].plot(time, zcr, label='ZCR', color='red')
     axs[0].set_xticks(np.arange(0, time[-1], 0.1))
     axs[0].set_yticks(np.arange(0, 1.1, 0.1))
 
@@ -127,19 +127,50 @@ def calculate_mean_and_std(feature_values):
     return mean, std
 
 
-def find_thresh_hold():
-    # v_ste_mean, v_ste_std = calculate_mean_and_std(extract_2('./TinHieuKiemThu/studio_M1.lab', ste, sample_rate, hop_size, 'v'))
-    # uv_ste_mean, uv_ste_std = calculate_mean_and_std(extract_2('./TinHieuKiemThu/studio_M1.lab', ste, sample_rate, hop_size, 'uv'))
-    # v_zcr_mean, v_zcr_std = calculate_mean_and_std(extract_2('./TinHieuKiemThu/studio_M1.lab', zcr, sample_rate, hop_size, 'v'))
-    # uv_zcr_mean, uv_zcr_std = calculate_mean_and_std(extract_2('./TinHieuKiemThu/studio_M1.lab', zcr, sample_rate, hop_size, 'uv'))
-    #
-    # ste_threshold =
-    # zcr_threshold =
-    pass
+def find_thresh_hold2(ste, zcr, ste_threshold, zcr_threshold):
+    new_ste = []
+    new_zcr = []
+    for i in range(len(ste)):
+        if ste[i] > ste_threshold and zcr[i] < zcr_threshold:
+            new_ste.append(ste[i])
+            new_zcr.append(zcr[i])
+    return new_ste, new_zcr
+
+
+def find_thresh_hold3(ste, zcr, sample_rate, hop_size):
+    v_ste_mean, v_ste_std = calculate_mean_and_std(
+        extract_2('./TinHieuKiemThu/studio_M1.lab', ste, sample_rate, hop_size, 'v'))
+    v_zcr_mean, v_zcr_std = calculate_mean_and_std(
+        extract_2('./TinHieuKiemThu/studio_M1.lab', zcr, sample_rate, hop_size, 'v'))
+
+    best_ste_threshold = None
+    best_zcr_threshold = None
+    min_diff = float('inf')
+
+    for ste_threshold in np.arange(min(ste), 0.3, 0.001):
+        for zcr_threshold in np.arange(min(zcr), 0.3, 0.001):
+            segmented_ste, segmented_zcr = find_thresh_hold2(ste, zcr, ste_threshold, zcr_threshold)
+
+            # Check if the segmented arrays are empty
+            if len(segmented_ste) == 0 or len(segmented_zcr) == 0:
+                continue
+
+            ste_mean, ste_std = calculate_mean_and_std(segmented_ste)
+            zcr_mean, zcr_std = calculate_mean_and_std(segmented_zcr)
+
+            diff = abs(ste_mean - v_ste_mean) + abs(zcr_mean - v_zcr_mean) + abs(ste_std - v_ste_std) + abs(zcr_std - v_zcr_std)
+
+            if diff < min_diff:
+                min_diff = diff
+                best_ste_threshold = ste_threshold
+                best_zcr_threshold = zcr_threshold
+
+    return best_zcr_threshold, best_ste_threshold
 
 
 if __name__ == "__main__":
-    audio_file_paths = ['./TinHieuKiemThu/phone_M1.wav']
+    audio_file_paths = ['./TinHieuKiemThu/studio_F1.wav', './TinHieuKiemThu/studio_M1.wav',
+                        './TinHieuKiemThu/phone_F1.wav','./TinHieuKiemThu/phone_M1.wav']
     for audio_file_path in audio_file_paths:
         audio_samples, sample_rate = read_audio(audio_file_path)
 
@@ -147,10 +178,7 @@ if __name__ == "__main__":
 
         ste, zcr = calculate_ste_and_zcr(audio_samples, frame_size, hop_size)
 
-        # segments = segment_audio(ste, zcr, ste_threshold=0.0015, zcr_threshold=0.12) #studio_M1
-        # segments = segment_audio(ste, zcr, ste_threshold=0.0015, zcr_threshold=0.17) #studio_F1
-        # segments = segment_audio(ste, zcr, ste_threshold=0.0019, zcr_threshold=0.17) #phone_F1
-        segments = segment_audio(ste, zcr, ste_threshold=0.0019, zcr_threshold=0.15) #phone_M1
+        segments = segment_audio(ste, zcr, ste_threshold=0.0019, zcr_threshold=0.17)
 
         segments = filter_data(segments, kernel_size=5)
 
