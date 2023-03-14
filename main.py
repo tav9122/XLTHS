@@ -100,71 +100,94 @@ def plot_results(audio_samples, sample_rate, ste, zcr, segments):
     plt.show()
 
 
-def extract_1(ste, sample_rate, hop_size, start_time, end_time):
-    start_frame = int(start_time * sample_rate / hop_size)
-    end_frame = int(end_time * sample_rate / hop_size)
-    return ste[start_frame:end_frame]
+# def extract_1(ste, sample_rate, hop_size, start_time, end_time):
+#     start_frame = int(start_time * sample_rate / hop_size)
+#     end_frame = int(end_time * sample_rate / hop_size)
+#     return ste[start_frame:end_frame]
+#
+#
+# def extract_2(filename, data_list, sample_rate, hop_size, segment_type):
+#     with open(filename, 'r') as f:
+#         lines = f.readlines()
+#
+#     lines = [line.split() for line in lines if line.split()[-1] == segment_type]
+#     new_data_list = []
+#     for line in lines:
+#         start_time, end_time = float(line[0]), float(line[1])
+#         segment = extract_1(data_list, sample_rate, hop_size, start_time, end_time)
+#         new_data_list.extend(segment)
+#     return np.array(new_data_list)
+#
+#
+# def calculate_mean_and_std(feature_values):
+#     mean = np.mean(feature_values)
+#     std = np.std(feature_values)
+#     return mean, std
+#
+#
+# def find_thresh_hold2(ste, zcr, ste_threshold, zcr_threshold):
+#     new_ste = []
+#     new_zcr = []
+#     for i in range(len(ste)):
+#         if ste[i] > ste_threshold and zcr[i] < zcr_threshold:
+#             new_ste.append(ste[i])
+#             new_zcr.append(zcr[i])
+#     return new_ste, new_zcr
+#
+#
+# def find_thresh_hold3(ste, zcr, sample_rate, hop_size):
+#     v_ste_mean, v_ste_std = calculate_mean_and_std(
+#         extract_2('./TinHieuKiemThu/studio_M1.lab', ste, sample_rate, hop_size, 'v'))
+#     v_zcr_mean, v_zcr_std = calculate_mean_and_std(
+#         extract_2('./TinHieuKiemThu/studio_M1.lab', zcr, sample_rate, hop_size, 'v'))
+#
+#     best_ste_threshold = None
+#     best_zcr_threshold = None
+#     min_diff = float('inf')
+#
+#     for ste_threshold in np.arange(min(ste), 0.3, 0.001):
+#         for zcr_threshold in np.arange(min(zcr), 0.3, 0.001):
+#             segmented_ste, segmented_zcr = find_thresh_hold2(ste, zcr, ste_threshold, zcr_threshold)
+#
+#             # Check if the segmented arrays are empty
+#             if len(segmented_ste) == 0 or len(segmented_zcr) == 0:
+#                 continue
+#
+#             ste_mean, ste_std = calculate_mean_and_std(segmented_ste)
+#             zcr_mean, zcr_std = calculate_mean_and_std(segmented_zcr)
+#
+#             diff = abs(ste_mean - v_ste_mean) + abs(zcr_mean - v_zcr_mean) + abs(ste_std - v_ste_std) + abs(zcr_std - v_zcr_std)
+#
+#             if diff < min_diff:
+#                 min_diff = diff
+#                 best_ste_threshold = ste_threshold
+#                 best_zcr_threshold = zcr_threshold
+#
+#     return best_zcr_threshold, best_ste_threshold
 
 
-def extract_2(filename, data_list, sample_rate, hop_size, segment_type):
-    with open(filename, 'r') as f:
+# Tìm sai số.
+def sai_so(audio_file_path, segments):
+    filename = audio_file_path.split('/')[-1]
+    lab_file_path = audio_file_path.replace("wav", "lab")
+    with open(lab_file_path, 'r') as f:
         lines = f.readlines()
 
-    lines = [line.split() for line in lines if line.split()[-1] == segment_type]
-    new_data_list = []
-    for line in lines:
-        start_time, end_time = float(line[0]), float(line[1])
-        segment = extract_1(data_list, sample_rate, hop_size, start_time, end_time)
-        new_data_list.extend(segment)
-    return np.array(new_data_list)
+    v_lines = [line.split() for line in lines if line.split()[-1] == "v"]
+    list = []
+    for line in v_lines:
+        list.append(float(line[1]) - float(line[0]))
 
+    count = 0
+    for frame_idx, color in segments.items():
+        if color == "green":
+            count += 1
 
-def calculate_mean_and_std(feature_values):
-    mean = np.mean(feature_values)
-    std = np.std(feature_values)
-    return mean, std
+    value = (sum(list) / float(lines[-3].split()[1])) / (count / len(segments))
+    if value > 1:
+        value = 1 - (value - 1)
 
-
-def find_thresh_hold2(ste, zcr, ste_threshold, zcr_threshold):
-    new_ste = []
-    new_zcr = []
-    for i in range(len(ste)):
-        if ste[i] > ste_threshold and zcr[i] < zcr_threshold:
-            new_ste.append(ste[i])
-            new_zcr.append(zcr[i])
-    return new_ste, new_zcr
-
-
-def find_thresh_hold3(ste, zcr, sample_rate, hop_size):
-    v_ste_mean, v_ste_std = calculate_mean_and_std(
-        extract_2('./TinHieuKiemThu/studio_M1.lab', ste, sample_rate, hop_size, 'v'))
-    v_zcr_mean, v_zcr_std = calculate_mean_and_std(
-        extract_2('./TinHieuKiemThu/studio_M1.lab', zcr, sample_rate, hop_size, 'v'))
-
-    best_ste_threshold = None
-    best_zcr_threshold = None
-    min_diff = float('inf')
-
-    for ste_threshold in np.arange(min(ste), 0.3, 0.001):
-        for zcr_threshold in np.arange(min(zcr), 0.3, 0.001):
-            segmented_ste, segmented_zcr = find_thresh_hold2(ste, zcr, ste_threshold, zcr_threshold)
-
-            # Check if the segmented arrays are empty
-            if len(segmented_ste) == 0 or len(segmented_zcr) == 0:
-                continue
-
-            ste_mean, ste_std = calculate_mean_and_std(segmented_ste)
-            zcr_mean, zcr_std = calculate_mean_and_std(segmented_zcr)
-
-            diff = abs(ste_mean - v_ste_mean) + abs(zcr_mean - v_zcr_mean) + abs(ste_std - v_ste_std) + abs(zcr_std - v_zcr_std)
-
-            if diff < min_diff:
-                min_diff = diff
-                best_ste_threshold = ste_threshold
-                best_zcr_threshold = zcr_threshold
-
-    return best_zcr_threshold, best_ste_threshold
-
+    return f"{filename}: {int(value * 100)}%"
 
 if __name__ == "__main__":
     audio_file_paths = ['./TinHieuKiemThu/studio_F1.wav', './TinHieuKiemThu/studio_M1.wav',
@@ -179,5 +202,7 @@ if __name__ == "__main__":
         segments = segment_audio(ste, zcr, ste_threshold=0.0019, zcr_threshold=0.17)
 
         segments = filter_data(segments, kernel_size=5)
+
+        print(sai_so(audio_file_path, segments))
 
         plot_results(audio_samples, sample_rate, ste, zcr, segments)
